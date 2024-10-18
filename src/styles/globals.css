@@ -1,42 +1,109 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* styles/global.css */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html,
+/* Obecné styly */
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+    overflow-x: auto;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Toolbar s prvky a tlačítky */
+#toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.draggable {
+    display: inline-block;
+    padding: 10px;
+    background-color: #e0e0e0;
+    border: 1px solid #ccc;
+    cursor: move;
+    user-select: none;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Panel nástrojů pro úpravu vlastností */
+#propertyPanel {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #ffffff;
+    padding: 10px;
+    border: 1px solid #ccc;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+#propertyPanel input,
+#propertyPanel select {
+    width: 100px;
+}
+
+/* Kontejner pro plochy faktury */
+.container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: nowrap;
+}
+
+/* Plochy faktury (A4 formát) */
+.invoice {
+    width: 21cm;
+    height: 29.7cm;
+    min-width: 21cm;
+    min-height: 29.7cm;
+    background-color: white;
+    border: 1px solid #ccc;
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* Přetažené prvky */
+.dropped {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+}
+
+.dropped[contenteditable='true']:focus {
+    outline: 2px dashed blue;
+}
+
+/* Vybraný prvek */
+.selected {
+    outline: 2px dashed red;
+}
+
+
+
+
+/* Responzivní styly */
+@media (max-width: 1200px) {
+    .container {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+@media print {
+    @page {
+        margin: 0; /* Tímto se pokusíš odstranit nebo minimalizovat výchozí okraje stránky */
+    }
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    #printArea {
+        margin: 0;
+        padding: 0;
+    }
 }
