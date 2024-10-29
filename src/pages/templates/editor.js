@@ -1,20 +1,21 @@
 // pages/templates/editor.js
 
-import React, { useState, useRef, useCallback } from 'react';
-import { Button } from '@mui/material';
-import { useDrag, useDrop } from 'react-dnd';
+import React, {useState, useRef, useCallback} from 'react';
+import {Button, Stack, TextField} from '@mui/material';
+import {useDrag, useDrop} from 'react-dnd';
+import {sendError} from "next/dist/server/api-utils";
 
 const ItemTypes = {
     TOOLBAR_ITEM: 'toolbar_item',
     CANVAS_ITEM: 'canvas_item',
 };
 
-const gridSize = 50; // Velikost mřížky pro zarovnání
+const gridSize = 10; // Velikost mřížky pro zarovnání
 
-const ToolbarItem = ({ itemType, label }) => {
+const ToolbarItem = ({itemType, label}) => {
     const [, drag] = useDrag(() => ({
         type: ItemTypes.TOOLBAR_ITEM,
-        item: { itemType },
+        item: {itemType},
     }));
 
     return (
@@ -40,9 +41,9 @@ const CanvasItem = ({
                     }) => {
     const ref = useRef(null);
 
-    const [{ isDragging }, drag] = useDrag({
+    const [{isDragging}, drag] = useDrag({
         type: ItemTypes.CANVAS_ITEM,
-        item: { id },
+        item: {id},
         collect: (monitor) => ({
             isDragging: monitor.isDragging(),
         }),
@@ -56,7 +57,7 @@ const CanvasItem = ({
                 x = Math.round(x / gridSize) * gridSize;
                 y = Math.round(y / gridSize) * gridSize;
 
-                updateItem(id, { left: x, top: y });
+                updateItem(id, {left: x, top: y});
             }
         },
     });
@@ -77,6 +78,52 @@ const CanvasItem = ({
         setEditing(id, false);
     };
 
+    function handleReturn() {
+        switch (type) {
+            case 'input': {
+                return (
+                    <input
+                        type="text"
+                        value={content}
+                        onChange={(e) => updateItem(id, {content: e.target.value})}
+
+                        style={{
+                            ...styles,
+                        }}
+                    />
+                )
+            }
+            case 'rect': {
+                return (
+                    <div
+                        style={{
+                        ...styles
+                    }}>
+
+                    </div>
+                )
+            }
+            default: {
+                return (
+                    <div
+                        className="resizing-text"
+                        contentEditable={isEditing}
+                        suppressContentEditableWarning={true}
+                        onBlur={handleBlur}
+                        onInput={(e) =>
+                            updateItem(id, {content: e.currentTarget.textContent})
+                        }
+                        style={{
+                            ...styles
+                        }}
+                    >
+                        {content}
+                    </div>
+                )
+            }
+        }
+    }
+
     return (
         <div
             ref={ref}
@@ -89,35 +136,7 @@ const CanvasItem = ({
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
         >
-            {type === 'input' ? (
-                <input
-                    type="text"
-                    value={content}
-                    onChange={(e) => updateItem(id, { content: e.target.value })}
-                    style={{
-                        //width: '100%',
-                        //height: '100%',
-                        //border: 'none',
-                        //background: 'transparent',
-                        ...styles,
-                    }}
-                />
-            ) : (
-                <div
-                    className="resizing-text"
-                    contentEditable={isEditing}
-                    suppressContentEditableWarning={true}
-                    onBlur={handleBlur}
-                    onInput={(e) =>
-                        updateItem(id, { content: e.currentTarget.textContent })
-                    }
-                    style={{
-                        ...styles
-                }}
-                >
-                    {content}
-                </div>
-            )}
+            {handleReturn(type)}
         </div>
     );
 };
@@ -150,22 +169,63 @@ const TemplateEditor = () => {
         },
     });
 
-    const addItem = (type, left, top) => {
-        const id = Date.now();
-        const newItem = {
+    function createRectItem(id, left, top) {
+        return {
             id,
-            type,
+            type: "rect",
             left,
             top,
-            content: type === 'input' ? '' : 'Nový text',
-            styles: { fontSize: 16, fontWeight: 'normal' },
-        };
+            content: "",
+            styles: {width: 100, height: 100, border: "1px solid black"},
+        }
+    }
+
+    function createTextItem(id, left, top) {
+        return {
+            id: id,
+            type: "text",
+            left,
+            top,
+            content: "text",
+            styles: {fontSize: 16, fontWeight: 'normal'},
+        }
+    }
+
+    function createInputItem(id, left, top) {
+        return {
+            id,
+            type: "input",
+            left,
+            top,
+            content: "input",
+            styles: {fontSize: 16, fontWeight: 'normal'},
+        }
+    }
+
+    const addItem = (type, left, top) => {
+        const id = Date.now();
+        let newItem = null;
+
+        switch (type) {
+            case "div": {
+                newItem = createTextItem(id, left, top);
+                break;
+            }
+            case "rect": {
+                newItem = createRectItem(id, left, top);
+                break;
+            }
+            case "input": {
+                newItem = createInputItem(id, left, top);
+                break;
+            }
+        }
         setCanvasItems((items) => [...items, newItem]);
     };
 
     const updateItem = (id, changes) => {
         setCanvasItems((items) =>
-            items.map((item) => (item.id === id ? { ...item, ...changes } : item)),
+            items.map((item) => (item.id === id ? {...item, ...changes} : item)),
         );
     };
 
@@ -179,7 +239,7 @@ const TemplateEditor = () => {
     };
 
     const setEditing = (id, isEditing) => {
-        setEditingItems((prev) => ({ ...prev, [id]: isEditing }));
+        setEditingItems((prev) => ({...prev, [id]: isEditing}));
     };
 
     const isEditing = (id) => {
@@ -199,12 +259,12 @@ const TemplateEditor = () => {
     }
 
     const handlePropertyChange = (e) => {
-        const { name, value } = e.target;
+        const {name, value} = e.target;
         const convertedValue = isNumber(value) ? stringToNumber(value) : value;
         const selectedItem = getSelectedItem();
         if (selectedItem) {
             updateItem(selectedItemId, {
-                styles: { ...selectedItem.styles, [name]: convertedValue },
+                styles: {...selectedItem.styles, [name]: convertedValue},
             });
         }
     };
@@ -213,20 +273,54 @@ const TemplateEditor = () => {
         return canvasItems.find((item) => item.id === selectedItemId);
     };
 
+    function resolveUnits(attributeName) {
+        switch (attributeName) {
+            case 'fontSize':
+            case 'width':
+            case "height":
+                return "px";
+            default:
+                return "";
+        }
+    }
+
+    function resolveName(attributeName) {
+        switch (attributeName) {
+            case 'fontSize':
+                return "font-size";
+            case 'fontWeight':
+                return "font-weight"
+            default:
+                return attributeName;
+        }
+    }
+
     const generateHTMLFromElements = () => {
         const invoice = invoiceRef.current;
 
         let htmlContent = `<div style="position: relative; width: ${invoice.offsetWidth}px; height: ${invoice.offsetHeight}px; background-color: white; box-sizing: border-box;">\n`;
 
         canvasItems.forEach((item) => {
-            const { type, left, top, content, styles } = item;
-            const style = `position:absolute; left:${left}px; top:${top}px; font-size:${styles.fontSize}px; font-weight:${styles.fontWeight};`;
+            const {type, left, top, content, styles} = item;
+            const stylesString = Object.entries(styles).map(style => {
+                return `${resolveName(style[0])}:${style[1]}${resolveUnits(style[0])}`
+            }).join(';')
 
-            if (type === 'input') {
-                const value = content || '';
-                htmlContent += `<input type="text" value="${value}" style="${style}" />\n`;
-            } else {
-                htmlContent += `<div style="${style}">${content}</div>\n`;
+            const style = `position:absolute; left:${left}px; top:${top}px; ${stylesString};`
+
+            switch (type) {
+                case "input": {
+                    const value = content || '';
+                    htmlContent += `<input type="text" value="${value}" style="${style}" />\n`;
+                    break;
+                }
+                case "rect": {
+                    htmlContent += `<div style="${style}">${content}</div>\n`;
+                    break;
+                }
+                default: {
+                    htmlContent += `<div style="${style}">${content}</div>\n`;
+                }
             }
         });
 
@@ -241,7 +335,7 @@ const TemplateEditor = () => {
 
     const downloadHTML = () => {
         const htmlContent = generateHTMLFromElements();
-        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const blob = new Blob([htmlContent], {type: 'text/html'});
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = 'generated-invoice.html';
@@ -302,89 +396,141 @@ const TemplateEditor = () => {
         [drop],
     );
 
+
     return (
         <>
-            {/* Toolbar s přetahovatelnými prvky a tlačítky */}
-            <div id="toolbar">
-                <ToolbarItem itemType="div" label="Text" />
-                <ToolbarItem itemType="input" label="Vstupní pole" />
-                <Button variant="contained" color="primary" onClick={generateHTML}>
-                    Generovat HTML
-                </Button>
-                <Button variant="contained" color="primary" onClick={downloadHTML}>
-                    Stáhnout HTML
-                </Button>
-                <Button variant="contained" color="primary" onClick={generatePreview}>
-                    Náhled
-                </Button>
-                <Button variant="contained" color="primary" onClick={printInvoice}>
-                    Tisk
-                </Button>
-                <Button variant="contained" color="secondary" onClick={clearAll}>
-                    Vyčistit
-                </Button>
-            </div>
+            <Stack direction="row" gap={1}>
+                <Stack width={200} gap={1}> // Right bar
 
-            {/* Panel nástrojů pro úpravu vlastností */}
-            {selectedItemId !== null && getSelectedItem() && (
-                <div id="propertyPanel" onClick={(e) => e.stopPropagation()}>
-                    <label>
-                        Velikost písma:
-                        <input
-                            type="number"
-                            name="fontSize"
-                            min="8"
-                            max="72"
-                            value={getSelectedItem().styles.fontSize}
-                            onChange={handlePropertyChange}
-                        />{' '}
-                        px
-                    </label>
-                    <label>
-                        Tučnost písma:
-                        <select
-                            name="fontWeight"
-                            value={getSelectedItem().styles.fontWeight}
-                            onChange={handlePropertyChange}
-                        >
-                            <option value="normal">Normální</option>
-                            <option value="bold">Tučné</option>
-                        </select>
-                    </label>
-                    <button onClick={() => deleteItem(selectedItemId)}>Smazat prvek</button>
-                </div>
-            )}
+                    <ToolbarItem itemType="div" label="Text"/>
+                    <ToolbarItem itemType="input" label="Input"/>
+                    <ToolbarItem itemType="rect" label="Rectangle"/>
 
-            {/* Kontejner pro plochy faktury */}
-            <div className="container">
-                {/* První A4: Editor faktury */}
-                <div className="invoice" onClick={handleCanvasClick} ref={combinedRef}>
-                    {canvasItems.map((item) => (
-                        <CanvasItem
-                            key={item.id}
-                            {...item}
-                            isSelected={item.id === selectedItemId}
-                            onSelect={selectItem}
-                            updateItem={updateItem}
-                            deleteItem={deleteItem}
-                            isEditing={isEditing(item.id)}
-                            setEditing={setEditing}
-                        />
-                    ))}
-                </div>
+                    <Button variant="contained" color="primary" onClick={generateHTML}>
+                        Generovat VZOR
+                    </Button>
+                    <Button variant="contained" color="primary" onClick={downloadHTML}>
+                        Stáhnout Vzor
+                    </Button>
+                    <Button variant="contained" color="primary" onClick={generatePreview}>
+                        Generovat náhled
+                    </Button>
+                    <Button variant="contained" color="primary" onClick={printInvoice}>
+                        Tisk
+                    </Button>
+                    <Button variant="contained" color="secondary" onClick={clearAll}>
+                        Vyčistit
+                    </Button>
 
-                {/* Druhá A4: Vygenerované HTML */}
-                <div className="invoice" ref={generatedInvoiceRef}>
-                    {/* Vygenerované HTML se zobrazí zde */}
-                </div>
+                    {/* Panel nástrojů pro úpravu vlastností */}
+                    {selectedItemId !== null && getSelectedItem() && (
+                        <PropertiesPanel selectedItem={getSelectedItem()} handlePropertyChange={handlePropertyChange}/>
+                    )}
+                </Stack>
 
-                {/* Třetí A4: Náhled pro tisk */}
-                <div className="invoice" ref={previewInvoiceRef}>
-                    {/* Náhled se zobrazí zde */}
-                </div>
-            </div>
+                <Stack> // invoices
+
+
+                    {/* Kontejner pro plochy faktury */}
+                    <div className="container">
+                        {/* První A4: Editor faktury */}
+                        <div className="invoice" onClick={handleCanvasClick} ref={combinedRef}>
+                            {canvasItems.map((item) => (
+                                <CanvasItem
+                                    key={item.id}
+                                    {...item}
+                                    isSelected={item.id === selectedItemId}
+                                    onSelect={selectItem}
+                                    updateItem={updateItem}
+                                    deleteItem={deleteItem}
+                                    isEditing={isEditing(item.id)}
+                                    setEditing={setEditing}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Druhá A4: Vygenerované HTML */}
+                        <div className="invoice" ref={generatedInvoiceRef}>
+                            {/* Vygenerované HTML se zobrazí zde */}
+                        </div>
+
+                        {/* Třetí A4: Náhled pro tisk */}
+                        <div className="invoice" ref={previewInvoiceRef}>
+                            {/* Náhled se zobrazí zde */}
+                        </div>
+                    </div>
+                </Stack>
+            </Stack>
         </>
     );
 };
+
+function PropertiesPanel({selectedItem, handlePropertyChange}) {
+
+    console.log(selectedItem)
+
+    function getCorrectPanel(type) {
+        switch (type) {
+            case "rect": {
+                return (
+                    <Stack>
+                        <TextField
+                            label={"width"}
+                            type={"number"}
+                            name={"width"}
+                            value={selectedItem.styles.width}
+                            onChange={handlePropertyChange}
+                        />
+                        <TextField
+                            label={"height"}
+                            type={"number"}
+                            name={"height"}
+                            value={selectedItem.styles.height}
+                            onChange={handlePropertyChange}
+                        />
+                        {/*Border width*/}
+
+                    </Stack>
+                )
+            }
+            default:
+                return (
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <label>
+                            Velikost písma:
+                            <input
+                                type="number"
+                                name="fontSize"
+                                min="8"
+                                max="72"
+                                value={selectedItem.styles.fontSize}
+                                onChange={handlePropertyChange}
+                            />{' '}
+                            px
+                        </label>
+                        <label>
+                            Tučnost písma:
+                            <select
+                                name="fontWeight"
+                                value={selectedItem.styles.fontWeight}
+                                onChange={handlePropertyChange}
+                            >
+                                <option value="normal">Normální</option>
+                                <option value="bold">Tučné</option>
+                            </select>
+                        </label>
+                        <button onClick={() => deleteItem(selectedItem.id)}>Smazat prvek</button>
+                    </div>
+
+                )
+        }
+    }
+
+    return (
+        getCorrectPanel(selectedItem.type)
+    )
+
+
+}
 
 export default TemplateEditor;

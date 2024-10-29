@@ -5,7 +5,7 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 20px;
-    background-color: #f0f0f0;
+    background-color: #383838;
     overflow-x: auto;
 }
 
@@ -59,7 +59,7 @@ body {
     height: 29.7cm;
     min-width: 21cm;
     min-height: 29.7cm;
-    background-color: white;
+    background-color: darkgray;
     border: 1px solid #ccc;
     position: relative;
     box-sizing: border-box;
